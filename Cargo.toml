@@ -1,5 +1,5 @@
 [package]
-name = "NesEmulator"
+name = "nes_emulator"
 version = "0.1.0"
 authors = ["Dante Ruiz <danteruiz102@gmail.com>"]
 edition = "2018"
