@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate lazy_static;
 mod nes_cpu;
 mod nes_rom;
 mod nes_system;
