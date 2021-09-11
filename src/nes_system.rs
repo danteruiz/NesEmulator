@@ -34,4 +34,9 @@ impl System {
             }
         }
     }
+
+    pub fn run(&mut self) {
+        self.cpu.reset();
+        self.cpu.run();
+    }
 }

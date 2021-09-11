@@ -8,6 +8,9 @@ fn main() {
 
     let mut system = nes_system::System::new();
 
-    let file_path = "test-roms/nes_instr_test/rom_singles/02-immediate.nes".to_string();
+    let file_path =
+        "test-roms/nes_instr_test/rom_singles/02-immediate.nes".to_string();
     system.load_rom(file_path);
+
+    system.run();
 }
