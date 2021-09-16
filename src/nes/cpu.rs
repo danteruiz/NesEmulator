@@ -1,6 +1,5 @@
-use crate::nes_rom;
-use std::collections::HashMap;
-use std::fmt;
+use crate::nes::opcode;
+use crate::nes::rom;
 
 const MAX_CPU_MEMORY: usize = 0x10000;
 
@@ -13,108 +12,9 @@ mod status_flags {
     pub const NEGATIVE: u8 = 1 << 7;
 }
 
-#[derive(Debug)]
-enum AddressMode {
-    Immediate,
-    Implied,
-    ZeroPage,
-    ZeroPageX,
-    ZeroPageY,
-    Absolute,
-    AbsoluteX,
-    AbsoluteY,
-    IndirectX,
-    IndirectY,
-}
-
-impl fmt::Display for AddressMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        return write!(f, "{:?}", self);
-    }
-}
-
-struct Opcode {
-    code: u8,
-    name: &'static str,
-    bytes: u8,
-    address_mode: AddressMode,
-    callback: fn(&mut Cpu, &AddressMode),
-}
-
-impl fmt::Display for Opcode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        return write!(
-            f,
-            "opcode:${:X} bytes:{} name:{} mode:{}",
-            self.code, self.bytes, self.name, self.address_mode
-        );
-    }
-}
-
-impl Opcode {
-    fn new(
-        code: u8,
-        name: &'static str,
-        bytes: u8,
-        address_mode: AddressMode,
-        callback: fn(&mut Cpu, &AddressMode),
-    ) -> Opcode {
-        return Opcode {
-            code: code,
-            name: name,
-            bytes: bytes,
-            address_mode: address_mode,
-            callback: callback,
-        };
-    }
-}
-
-lazy_static! {
-    static ref OPCODE_MAP: HashMap<u8, Opcode> = {
-        let mut opcode_map = HashMap::new();
-        opcode_map.insert(
-            0x69,
-            Opcode::new(0x69, "ADC", 2, AddressMode::Immediate, Cpu::adc),
-        );
-        opcode_map.insert(
-            0x78,
-            Opcode::new(0x78, "SEI", 1, AddressMode::Immediate, Cpu::sei),
-        );
-        opcode_map.insert(
-            0x00,
-            Opcode::new(0x00, "BRK", 1, AddressMode::Immediate, Cpu::brk),
-        );
-        opcode_map.insert(
-            0x4C,
-            Opcode::new(0x4C, "JMP", 3, AddressMode::Absolute, Cpu::jmp),
-        );
-        opcode_map.insert(
-            0xA9,
-            Opcode::new(0xA9, "LDA", 2, AddressMode::Immediate, Cpu::lda),
-        );
-        opcode_map.insert(
-            0x8D,
-            Opcode::new(0x8D, "STA", 3, AddressMode::Absolute, Cpu::sta),
-        );
-        opcode_map.insert(
-            0xD8,
-            Opcode::new(0xD8, "CLD", 1, AddressMode::Implied, Cpu::cld),
-        );
-
-        opcode_map.insert(
-            0xA2,
-            Opcode::new(0xA2, "LDX", 2, AddressMode::Immediate, Cpu::ldx),
-        );
-        opcode_map.insert(
-            0x9A,
-            Opcode::new(0x9A, "TXS", 1, AddressMode::Implied, Cpu::txs),
-        );
-
-        return opcode_map;
-    };
-}
 const STACK_ADDRESS: u16 = 0x0100;
 const STACK_RESET: u8 = 0xff;
+
 pub struct Cpu {
     pub program_pointer: u16,
     pub stack_pointer: u8,
@@ -140,7 +40,7 @@ pub fn create_cpu() -> Cpu {
     return cpu;
 }
 
-pub fn load_rom(cpu: &mut Cpu, rom: nes_rom::Rom) {
+pub fn load_rom(cpu: &mut Cpu, rom: rom::Rom) {
     let program = rom.prog_rom;
     cpu.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
 }
@@ -173,47 +73,55 @@ impl Cpu {
     fn stack_push(&mut self, data: u8) {
         let address = STACK_ADDRESS as u16 + self.stack_pointer as u16;
         self.write_memory(address, data);
-        println!("stack pointer {}", self.stack_pointer);
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
 
-    fn read_memory_mode(&mut self, address_mode: &AddressMode) -> u16 {
+    fn stack_push_u16(&mut self, data: u16) {
+        let hi: u8 = (data >> 8) as u8;
+        let lo: u8 = (data & 0xff) as u8;
+        let mut address = STACK_ADDRESS as u16 + self.stack_pointer as u16;
+        self.write_memory(address, hi);
+        address = address.wrapping_sub(1);
+        self.write_memory(address, lo);
+        self.stack_pointer = self.stack_pointer.wrapping_sub(2);
+    }
+
+    fn read_memory_mode(&mut self, address_mode: &opcode::AddressMode) -> u16 {
         match address_mode {
-            AddressMode::Immediate => {
+            opcode::AddressMode::Immediate => {
                 return self.program_pointer;
             }
-            AddressMode::Implied => {
+            opcode::AddressMode::Implied => {
                 return self.program_pointer;
             }
-            AddressMode::ZeroPage => {
+            opcode::AddressMode::ZeroPage => {
                 return self.read_memory(self.program_pointer) as u16;
             }
-            AddressMode::ZeroPageX => {
+            opcode::AddressMode::ZeroPageX => {
                 let address = self.read_memory(self.program_pointer);
                 return address.wrapping_add(self.register_x) as u16;
             }
-            AddressMode::ZeroPageY => {
+            opcode::AddressMode::ZeroPageY => {
                 let address = self.read_memory(self.program_pointer);
                 return address.wrapping_add(self.register_y) as u16;
             }
-            AddressMode::Absolute => {
+            opcode::AddressMode::Absolute => {
                 return self.read_16_bits(self.program_pointer) as u16;
             }
-            AddressMode::AbsoluteX => {
+            opcode::AddressMode::AbsoluteX => {
                 let address = self.read_16_bits(self.program_pointer);
                 return address.wrapping_add(self.register_x as u16);
             }
-            AddressMode::AbsoluteY => {
+            opcode::AddressMode::AbsoluteY => {
                 let address = self.read_16_bits(self.program_pointer);
                 return address.wrapping_add(self.register_y as u16);
             }
-            AddressMode::IndirectX => {
+            opcode::AddressMode::IndirectX => {
                 let base = self.read_memory(self.program_pointer);
-
                 let address = base.wrapping_add(self.register_x);
                 return u16::from_le_bytes([address, address.wrapping_add(1)]);
             }
-            AddressMode::IndirectY => {
+            opcode::AddressMode::IndirectY => {
                 let base = self.read_memory(self.program_pointer);
                 let address = u16::from_le_bytes([base, base.wrapping_add(1)]);
                 return address.wrapping_add(self.register_y as u16);
@@ -227,7 +135,7 @@ impl Cpu {
             self.program_pointer += 1;
             let last_program_pointer = self.program_pointer;
 
-            let opcode = OPCODE_MAP
+            let opcode = opcode::OPCODE_MAP
                 .get(&code)
                 .expect(&format!("Opcode:${:X} is not supported", code));
 
@@ -246,17 +154,17 @@ impl Cpu {
         }
     }
 
-    fn sei(&mut self, _address_mode: &AddressMode) {
+    pub fn sei(&mut self, _address_mode: &opcode::AddressMode) {
         self.status |= status_flags::INTER;
     }
 
-    fn adc(&mut self, _address_mode: &AddressMode) {}
+    pub fn adc(&mut self, _address_mode: &opcode::AddressMode) {}
 
-    fn jmp(&mut self, address_mode: &AddressMode) {
+    pub fn jmp(&mut self, address_mode: &opcode::AddressMode) {
         self.program_pointer = self.read_memory_mode(address_mode);
     }
 
-    fn lda(&mut self, address_mode: &AddressMode) {
+    pub fn lda(&mut self, address_mode: &opcode::AddressMode) {
         let value = self.read_memory_mode(address_mode);
 
         if value == 0 {
@@ -273,16 +181,16 @@ impl Cpu {
         self.register_a = value as u8;
     }
 
-    fn sta(&mut self, address_mode: &AddressMode) {
+    pub fn sta(&mut self, address_mode: &opcode::AddressMode) {
         let address = self.read_memory_mode(address_mode);
         self.write_memory(address, self.register_a);
     }
 
-    fn cld(&mut self, _address_mode: &AddressMode) {
+    pub fn cld(&mut self, _address_mode: &opcode::AddressMode) {
         self.status |= !status_flags::DEC;
     }
 
-    fn ldx(&mut self, address_mode: &AddressMode) {
+    pub fn ldx(&mut self, address_mode: &opcode::AddressMode) {
         let value = self.read_memory_mode(address_mode);
 
         if value == 0 {
@@ -299,10 +207,33 @@ impl Cpu {
         self.register_x = value as u8;
     }
 
-    fn txs(&mut self, address_mode: &AddressMode) {
+    pub fn txs(&mut self, address_mode: &opcode::AddressMode) {
         let data = self.read_memory_mode(address_mode);
         self.stack_push(data as u8);
     }
 
-    fn brk(&mut self, _address_mode: &AddressMode) {}
+    pub fn jsr(&mut self, address_mode: &opcode::AddressMode) {
+        let previous_address = self.program_pointer.wrapping_add(1);
+        self.stack_push_u16(previous_address);
+        self.program_pointer = self.read_memory_mode(address_mode);
+    }
+
+    pub fn tax(&mut self, _address_mode: &opcode::AddressMode) {
+        let value = self.register_a;
+        if value == 0 {
+            self.status |= status_flags::ZERO;
+        } else {
+            self.status &= !status_flags::ZERO;
+        }
+
+        if value & 0b1 > 0 {
+            self.status |= status_flags::NEGATIVE;
+        } else {
+            self.status |= !status_flags::NEGATIVE;
+        }
+
+        self.register_x = value;
+    }
+
+    pub fn brk(&mut self, _address_mode: &opcode::AddressMode) {}
 }

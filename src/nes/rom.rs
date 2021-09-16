@@ -1,6 +1,12 @@
 use std::fs;
 use std::io::prelude::*;
 
+pub mod rom {
+    pub fn test() {
+        println!("this is a test");
+    }
+}
+
 pub struct Rom {
     pub prog_rom: Vec<u8>,
     pub char_rom: Vec<u8>,
