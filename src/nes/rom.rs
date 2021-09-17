@@ -1,11 +1,13 @@
+// rom.rs
+//
+// Created on 2021/09/16 by Dante Ruiz
+// Copyright 2021 Dante Ruiz
+//
+// Distributed under the MIT Lisense
+// https://mit-license.org/
+
 use std::fs;
 use std::io::prelude::*;
-
-pub mod rom {
-    pub fn test() {
-        println!("this is a test");
-    }
-}
 
 pub struct Rom {
     pub prog_rom: Vec<u8>,
@@ -73,6 +75,14 @@ pub fn create_rom(file_path: String) -> Option<Rom> {
         prog_rom: bytes[prog_offset..(prog_offset + rom_prg_len)].to_vec(),
         char_rom: bytes[char_offset..(char_offset + rom_chr_len)].to_vec(),
     };
+
+    for index in 0..rom.prog_rom.len() - 1 {
+        if rom.prog_rom[index] == 0xF5 && rom.prog_rom[index + 1] == 0xC5 {
+            println!("{:X} {:X}", index, rom.prog_rom[index - 1]);
+        }
+    }
+
+    println!("done");
 
     return Some(rom);
 }

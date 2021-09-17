@@ -1,3 +1,11 @@
+// opcode.rs
+//
+// Created on 2021/09/16 by Dante Ruiz
+// Copyright 2021 Dante Ruiz
+//
+// Distributed under the MIT Lisense
+// https://mit-license.org/
+
 use crate::nes::cpu;
 use std::collections::HashMap;
 use std::fmt;

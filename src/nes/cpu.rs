@@ -1,3 +1,11 @@
+// cpu.rs
+//
+// Created on 2021/09/16 by Dante Ruiz
+// Copyright 2021 Dante Ruiz
+//
+// Distributed under the MIT Lisense
+// https://mit-license.org/
+
 use crate::nes::opcode;
 use crate::nes::rom;
 
@@ -42,7 +50,10 @@ pub fn create_cpu() -> Cpu {
 
 pub fn load_rom(cpu: &mut Cpu, rom: rom::Rom) {
     let program = rom.prog_rom;
-    cpu.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
+    // for index in 0..program.len() {
+    //     println!("{:X} - {:02X}", 0x8000 + index, program[index]);
+    // }
+    cpu.memory[0xC000..(0xC000 + program.len())].copy_from_slice(&program[..]);
 }
 
 impl Cpu {
@@ -58,7 +69,8 @@ impl Cpu {
         self.register_z = 0;
         self.register_y = 0;
 
-        self.program_pointer = self.read_16_bits(0xFFFC);
+        // 0xFFFC
+        self.program_pointer = 0xC000; //self.read_16_bits(0xC000);
         self.stack_pointer = STACK_RESET;
     }
 
@@ -132,6 +144,16 @@ impl Cpu {
     pub fn run(&mut self) {
         loop {
             let code = self.read_memory(self.program_pointer);
+            println!(
+                "{:X}  {:X}     A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:X}",
+                self.program_pointer,
+                code,
+                self.register_a,
+                self.register_x,
+                self.register_y,
+                self.status,
+                self.stack_pointer
+            );
             self.program_pointer += 1;
             let last_program_pointer = self.program_pointer;
 
@@ -139,7 +161,6 @@ impl Cpu {
                 .get(&code)
                 .expect(&format!("Opcode:${:X} is not supported", code));
 
-            println!("{}", opcode);
             if code == 0x00 {
                 break;
             }
@@ -231,7 +252,6 @@ impl Cpu {
         } else {
             self.status |= !status_flags::NEGATIVE;
         }
-
         self.register_x = value;
     }
 
