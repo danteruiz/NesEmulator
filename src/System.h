@@ -10,7 +10,12 @@
 
 #pragma once
 
+#include <iostream>
 #include <memory>
+#include <string>
+
+#include "Cpu.h"
+#include "MemoryBus.h"
 
 class System
 {
@@ -24,6 +29,10 @@ public:
     System();
     ~System();
 
-    bool load_rom();
+    bool load_rom(const std::string &rom_path);
     void run();
+
+private:
+    nes::MemoryBus _memory_bus;
+    nes::Cpu _cpu;
 };

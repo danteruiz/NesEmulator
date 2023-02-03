@@ -1,5 +1,5 @@
 /*
- * Cpu.cpp
+ * MemoryBus.cpp
  *
  * Created on 2023/02/01 by Dante Ruiz
  * Copyright 2023 Dante Ruiz
@@ -8,9 +8,10 @@
  * https://mit-license.org/
  */
 
-#include "Cpu.h"
+#include "MemoryBus.h"
 
 namespace nes
 {
-Cpu::Cpu(MemoryBus &memory_bus) : _memory_bus(memory_bus) {}
+MemoryBus::MemoryBus() {}
+MemoryBus::~MemoryBus() {}
 } // namespace nes

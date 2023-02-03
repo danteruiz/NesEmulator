@@ -10,22 +10,15 @@
 
 #include "Clock.h"
 #include "Common.h"
-#include "Utils.h"
+#include "System.h"
 
 #include <iostream>
 #include <string>
 
 int main()
 {
-    u8 data[512];
-    size_t bytes_read = 0;
-    sync_read_file("path to file", data, sizeof(data), bytes_read);
 
-    Clock clock;
-    while (true)
-    {
-        auto delta_time = clock.delta_time();
-        std::cout << "delta time: " << delta_time << std::endl;
-    }
+    System system;
+    system.load_rom("/home/dante/code/NesEmulator/test-roms/other/nestest.nes");
     return 0;
 }
